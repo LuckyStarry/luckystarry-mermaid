@@ -135,6 +135,7 @@ async function renderWithMermaid(code: string, options: { theme: string; backgro
   <script>
     (async function() {
       await mermaid.run();
+      // @ts-ignore - browser environment
       window.mermaidRenderComplete = true;
     })();
   </script>
@@ -155,7 +156,8 @@ async function renderWithMermaid(code: string, options: { theme: string; backgro
     
     // Wait for mermaid to render
     await page.waitForFunction(() => {
-      return (window as any).mermaidRenderComplete
+      // @ts-ignore - browser environment
+      return window.mermaidRenderComplete
     }, { timeout: 5000 })
     
     // Get the SVG
