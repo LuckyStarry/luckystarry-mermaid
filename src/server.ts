@@ -133,9 +133,9 @@ async function renderWithMermaid(code: string, options: { theme: string; backgro
 <body style="background-color: ${backgroundColor}; margin: 0; padding: 20px;">
   <div class="mermaid">${code}</div>
   <script>
-    (async () => {
+    (async function() {
       await mermaid.run();
-      window.renderComplete = true;
+      window.mermaidRenderComplete = true;
     })();
   </script>
 </body>
@@ -154,7 +154,9 @@ async function renderWithMermaid(code: string, options: { theme: string; backgro
     await page.setContent(html, { waitUntil: 'networkidle0' })
     
     // Wait for mermaid to render
-    await page.waitForFunction(() => (window as any).renderComplete, { timeout: 5000 })
+    await page.waitForFunction(() => {
+      return (window as any).mermaidRenderComplete
+    }, { timeout: 5000 })
     
     // Get the SVG
     const svg = await page.$eval('.mermaid svg', (el: any) => el.outerHTML)
