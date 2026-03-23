@@ -1,19 +1,20 @@
-FROM node:18-alpine
+# 基于 nodejs-puppeteer 镜像（Debian bookworm，已优化 Chromium）
+FROM registry.cn-hangzhou.aliyuncs.com/luckystarry/nodejs-puppeteer:24.4.0
 
-# Install Chromium for Puppeteer
-RUN apk add --no-cache chromium
+# 切换到 root 用户进行构建
+USER root
 
-# Set environment variables
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
-# Create app directory
 WORKDIR /app
+
+# 设置环境变量
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for build)
+# Install dependencies
 RUN npm install
 
 # Copy source code
@@ -22,8 +23,8 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Remove devDependencies for production
-RUN npm install --omit=dev
+# 切换回 pptruser 用户运行
+USER pptruser
 
 # Expose port
 EXPOSE 3000
