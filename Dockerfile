@@ -1,4 +1,4 @@
-# 基于官方 Puppeteer 镜像，集成中文字体支持
+# 基于官方 Puppeteer 镜像（mmdc 需要 Chromium）
 FROM ghcr.io/puppeteer/puppeteer:24.4.0
 
 USER root
@@ -9,16 +9,11 @@ WORKDIR /app
 COPY fonts/simsun.ttc /usr/share/fonts/simsun.ttc
 RUN fc-cache -fv && fc-list :lang=zh
 
-# 设置 Puppeteer 环境变量
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
 # 安装依赖
 COPY package*.json ./
 RUN npm install
 
-# 复制源码
+# 复制源码和配置
 COPY . .
 
 # 构建 TypeScript

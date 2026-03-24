@@ -1,5 +1,11 @@
 import express, { Request, Response } from 'express'
-import puppeteer from 'puppeteer-core'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as os from 'os'
+
+const execAsync = promisify(exec)
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -26,8 +32,8 @@ app.post('/render', async (req: Request, res: Response) => {
     const theme = options.theme || 'default'
     const backgroundColor = options.backgroundColor || 'transparent'
     
-    // Render using mermaid CLI via puppeteer
-    const svg = await renderWithMermaid(code, { theme, backgroundColor })
+    // Render using mmdc
+    const svg = await renderWithMmdc(code, { theme, backgroundColor })
 
     res.json({
       success: true,
@@ -75,7 +81,7 @@ app.post('/render/batch', async (req: Request, res: Response) => {
 
           const theme = options.theme || 'default'
           const backgroundColor = options.backgroundColor || 'transparent'
-          const svg = await renderWithMermaid(code, { theme, backgroundColor })
+          const svg = await renderWithMmdc(code, { theme, backgroundColor })
 
           return {
             index,
@@ -110,62 +116,44 @@ app.post('/render/batch', async (req: Request, res: Response) => {
 })
 
 /**
- * Render Mermaid code to SVG using puppeteer and mermaid
+ * Render Mermaid code to SVG using mmdc (Mermaid CLI)
  */
-async function renderWithMermaid(code: string, options: { theme: string; backgroundColor: string }): Promise<string> {
+async function renderWithMmdc(code: string, options: { theme: string; backgroundColor: string }): Promise<string> {
   const theme = options.theme || 'default'
   const backgroundColor = options.backgroundColor || 'transparent'
 
-  // Create HTML with mermaid
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
-  <script>
-    mermaid.initialize({ 
-      startOnLoad: false, 
-      theme: '${theme}',
-      securityLevel: 'loose'
-    });
-  </script>
-</head>
-<body style="background-color: ${backgroundColor}; margin: 0; padding: 20px;">
-  <div class="mermaid">${code}</div>
-  <script>
-    (async function() {
-      await mermaid.run();
-      // @ts-ignore - browser environment
-      window.mermaidRenderComplete = true;
-    })();
-  </script>
-</body>
-</html>
-  `
-
-  // Launch puppeteer with chromium
-  const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  })
-
+  // Create temp directory
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mermaid-'))
+  const inputFile = path.join(tempDir, 'input.mmd')
+  const outputFile = path.join(tempDir, 'output.svg')
+  
   try {
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
+    // Write Mermaid code to temp file
+    fs.writeFileSync(inputFile, code)
     
-    // Wait for mermaid to render
-    await page.waitForFunction(() => {
-      // @ts-ignore - browser environment
-      return window.mermaidRenderComplete
-    }, { timeout: 5000 })
+    // Build mmdc command
+    const puppeteerConfig = path.join(__dirname, '..', 'puppeteer-config.json')
+    const backgroundColorArg = backgroundColor !== 'transparent' ? `-b ${backgroundColor}` : '-b transparent'
+    const themeArg = `-t ${theme}`
     
-    // Get the SVG
-    const svg = await page.$eval('.mermaid svg', (el: any) => el.outerHTML)
+    // Execute mmdc
+    const command = `mmdc -i "${inputFile}" -o "${outputFile}" ${backgroundColorArg} ${themeArg} -p "${puppeteerConfig}"`
+    await execAsync(command)
+    
+    // Read SVG
+    const svg = fs.readFileSync(outputFile, 'utf-8')
     
     return svg
+  } catch (error: any) {
+    console.error('mmdc render error:', error)
+    throw new Error(`mmdc failed: ${error.message}`)
   } finally {
-    await browser.close()
+    // Cleanup temp files
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   }
 }
 
