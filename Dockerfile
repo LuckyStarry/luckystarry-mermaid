@@ -12,7 +12,7 @@ RUN fc-cache -fv && fc-list :lang=zh
 # 设置 Puppeteer 环境变量
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # 安装依赖
 COPY package*.json ./
