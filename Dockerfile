@@ -1,26 +1,27 @@
-# 基于 nodejs-puppeteer 镜像（Debian bookworm，已优化 Chromium）
-FROM registry.cn-hangzhou.aliyuncs.com/luckystarry/nodejs-puppeteer:24.4.0
+# 基于官方 Puppeteer 镜像，集成中文字体支持
+FROM ghcr.io/puppeteer/puppeteer:24.4.0
 
-# 切换到 root 用户进行构建
 USER root
 
 WORKDIR /app
 
-# 设置环境变量
+# 添加中文字体（Mermaid 中文渲染必需）
+COPY fonts/simsun.ttc /usr/share/fonts/simsun.ttc
+RUN fc-cache -fv && fc-list :lang=zh
+
+# 设置 Puppeteer 环境变量
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Copy package files
+# 安装依赖
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy source code
+# 复制源码
 COPY . .
 
-# Build TypeScript
+# 构建 TypeScript
 RUN npm run build
 
 # 切换回 pptruser 用户运行
